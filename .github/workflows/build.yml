@@ -1,0 +1,41 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Compilar en Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Instalar GTK 4
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-1 libgtk-4-dev
+
+      - name: Restaurar dependencias
+        run: dotnet restore
+
+      - name: Compilar (Release)
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publicar artefacto
+        run: dotnet publish --configuration Release --no-build --output ./publish
+
+      - name: Subir binarios
+        uses: actions/upload-artifact@v4
+        with:
+          name: coretemplinux-linux-x64
+          path: ./publish

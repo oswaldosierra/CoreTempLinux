@@ -1,0 +1,25 @@
+name: ✨ Propuesta de mejora
+description: Sugiere una nueva funcionalidad o mejora
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: ¿Qué problema resuelve?
+      description: Describe la necesidad o el caso de uso.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solucion
+    attributes:
+      label: Solución propuesta
+      description: ¿Cómo te gustaría que funcionara?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas consideradas
+      description: Otras opciones que hayas valorado (opcional).

@@ -1,0 +1,56 @@
+name: 🐛 Reporte de error
+description: Informa de un fallo en CoreTempLinux
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Gracias por reportar un error. Rellena los campos para poder reproducirlo.
+
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripción del error
+      description: ¿Qué ocurrió? ¿Qué esperabas que ocurriera?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduccion
+    attributes:
+      label: Pasos para reproducir
+      placeholder: |
+        1. Abrir la app
+        2. ...
+        3. Ver el error
+    validations:
+      required: true
+
+  - type: input
+    id: distro
+    attributes:
+      label: Distribución y kernel
+      description: Salida de `uname -a` y nombre/versión de tu distro.
+    validations:
+      required: true
+
+  - type: input
+    id: cpu
+    attributes:
+      label: Modelo de CPU
+      description: Por ejemplo "AMD Ryzen 5 5600X" o "Intel Core i7-10700".
+    validations:
+      required: true
+
+  - type: textarea
+    id: sensores
+    attributes:
+      label: Sensores (opcional)
+      description: Salida de `sensors` o contenido relevante de `/sys/class/hwmon`.
+      render: shell
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / salida de consola
+      description: Salida de `dotnet run` si hay errores.
+      render: shell

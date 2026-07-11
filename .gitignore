@@ -1,0 +1,51 @@
+# .NET / build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+publish/
+artifacts/
+
+# .NET restore / build helpers
+project.lock.json
+project.fragment.lock.json
+*.nuget.props
+*.nuget.targets
+.nuget/
+
+# MSBuild / user-specific
+*.user
+*.suo
+*.userprefs
+*.rsuser
+*.sln.docstates
+*.binlog
+
+# Test / coverage
+[Tt]est[Rr]esult*/
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+
+# IDEs / editors
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Rider
+*.sln.iml
+
+# Logs and temp
+*.log
+*.tmp
