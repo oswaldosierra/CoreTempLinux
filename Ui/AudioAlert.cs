@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using CoreTempLinux.Diagnostics;
 
 namespace CoreTempLinux.Ui;
 
@@ -7,7 +8,7 @@ namespace CoreTempLinux.Ui;
 /// (paplay/pw-play). Evita solapar reproducciones: si la anterior sigue sonando
 /// no lanza otra, de modo que llamarlo cada segundo produce un tono continuo.
 /// </summary>
-public sealed class AudioAlert
+public sealed class AudioAlert : IAudioAlert
 {
     private static readonly string? SoundFile = FirstExisting(
         "/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga",
@@ -16,9 +17,18 @@ public sealed class AudioAlert
 
     private static readonly string? Player = FirstOnPath("paplay", "pw-play", "ffplay");
 
+    private readonly IAppLogger _log;
+
     private Process? _current;
 
     public bool Available => Player != null && SoundFile != null;
+
+    public AudioAlert(IAppLogger log)
+    {
+        _log = log;
+        if (!Available)
+            _log.Info("Alerta sonora deshabilitada: no se encontró reproductor o sonido del sistema.");
+    }
 
     /// <summary>Reproduce el sonido si no hay ya uno sonando.</summary>
     public void Play()
@@ -41,9 +51,10 @@ public sealed class AudioAlert
             psi.ArgumentList.Add(SoundFile);
             _current = Process.Start(psi);
         }
-        catch
+        catch (Exception ex)
         {
             _current = null;
+            _log.Warning($"No se pudo reproducir la alerta sonora con «{Player}».", ex);
         }
     }
 
@@ -55,9 +66,10 @@ public sealed class AudioAlert
             if (_current is { HasExited: false })
                 _current.Kill(entireProcessTree: true);
         }
-        catch
+        catch (Exception ex)
         {
             // El proceso pudo terminar entre la comprobación y el Kill.
+            _log.Debug($"No se pudo detener la alerta sonora: {ex.GetType().Name}.");
         }
         finally
         {

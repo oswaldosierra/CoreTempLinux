@@ -4,49 +4,46 @@ namespace CoreTempLinux.Sensors;
 /// Calcula el porcentaje de uso por núcleo a partir de dos muestras de /proc/stat.
 /// La primera llamada devuelve ceros (no hay muestra previa con la que comparar).
 /// </summary>
-public sealed class CpuLoad
+public sealed class CpuLoad : ICpuLoadReader
 {
+    private readonly IFileSystem _fs;
+
     private long[] _prevIdle = Array.Empty<long>();
     private long[] _prevTotal = Array.Empty<long>();
+
+    public CpuLoad(IFileSystem fs) => _fs = fs;
 
     public double[] ReadPercent()
     {
         var idles = new List<long>();
         var totals = new List<long>();
 
-        try
+        foreach (var line in _fs.ReadLines("/proc/stat"))
         {
-            foreach (var line in File.ReadLines("/proc/stat"))
-            {
-                if (!line.StartsWith("cpu", StringComparison.Ordinal))
-                    break; // Las líneas cpuN van primero; al llegar a "intr" paramos.
+            if (!line.StartsWith("cpu", StringComparison.Ordinal))
+                break; // Las líneas cpuN van primero; al llegar a "intr" paramos.
 
-                // Nos quedamos solo con las líneas por núcleo ("cpu0", "cpu1", ...),
-                // descartando el agregado "cpu " (que tiene un espacio en la posición 3).
-                if (line.Length < 4 || !char.IsDigit(line[3]))
+            // Nos quedamos solo con las líneas por núcleo ("cpu0", "cpu1", ...),
+            // descartando el agregado "cpu " (que tiene un espacio en la posición 3).
+            if (line.Length < 4 || !char.IsDigit(line[3]))
+                continue;
+
+            var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            long total = 0, idle = 0;
+            // parts: cpuN user nice system idle iowait irq softirq steal guest guest_nice
+            for (var i = 1; i < parts.Length; i++)
+            {
+                if (!long.TryParse(parts[i], out var v))
                     continue;
 
-                var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-                long total = 0, idle = 0;
-                // parts: cpuN user nice system idle iowait irq softirq steal guest guest_nice
-                for (var i = 1; i < parts.Length; i++)
-                {
-                    if (!long.TryParse(parts[i], out var v))
-                        continue;
-
-                    total += v;
-                    if (i == 4 || i == 5) // idle + iowait
-                        idle += v;
-                }
-
-                idles.Add(idle);
-                totals.Add(total);
+                total += v;
+                if (i == 4 || i == 5) // idle + iowait
+                    idle += v;
             }
-        }
-        catch
-        {
-            // /proc/stat no disponible: devolvemos lo acumulado hasta ahora.
+
+            idles.Add(idle);
+            totals.Add(total);
         }
 
         var n = totals.Count;

@@ -11,6 +11,10 @@ x86/
 publish/
 artifacts/
 
+# Paquetes empaquetados / salida de build-deb.sh
+dist/
+*.deb
+
 # .NET restore / build helpers
 project.lock.json
 project.fragment.lock.json

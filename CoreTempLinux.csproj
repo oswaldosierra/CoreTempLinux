@@ -10,8 +10,15 @@
     <SelfContained>false</SelfContained>
   </PropertyGroup>
 
+  <!-- El proyecto de pruebas vive en tests/ y se compila por separado. -->
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="GirCore.Gtk-4.0" Version="0.6.*" />
+    <!-- Bandeja del sistema vía StatusNotifierItem sobre D-Bus. -->
+    <PackageReference Include="Tmds.DBus" Version="0.94.*" />
   </ItemGroup>
 
 </Project>
