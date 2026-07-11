@@ -31,6 +31,9 @@ jobs:
       - name: Compilar (Release)
         run: dotnet build --configuration Release --no-restore
 
+      - name: Ejecutar tests
+        run: dotnet test tests/CoreTempLinux.Tests --configuration Release
+
       - name: Publicar artefacto
         run: dotnet publish --configuration Release --no-build --output ./publish
 

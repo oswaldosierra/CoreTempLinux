@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publicar release (.deb)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Instalar .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Instalar GTK 4
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-1 libgtk-4-dev
+
+      - name: Leer versión del .csproj
+        id: version
+        run: |
+          version=$(grep -oP '(?<=<Version>)[^<]+' CoreTempLinux.csproj)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Versión en .csproj: $version"
+
+      - name: Verificar que el tag coincide con la versión del .csproj
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          csproj="${{ steps.version.outputs.version }}"
+          if [ "$tag" != "$csproj" ]; then
+            echo "::error::El tag ($GITHUB_REF_NAME) no coincide con <Version> del .csproj ($csproj). Actualiza el .csproj antes de crear el tag."
+            exit 1
+          fi
+
+      - name: Ejecutar tests
+        run: dotnet test tests/CoreTempLinux.Tests --configuration Release
+
+      - name: Construir paquete .deb
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./build-deb.sh
+
+      - name: Crear GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: CoreTempLinux ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: dist/coretemplinux_${{ steps.version.outputs.version }}_amd64.deb

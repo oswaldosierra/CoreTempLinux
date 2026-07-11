@@ -8,6 +8,8 @@
     <!-- Este proyecto es exclusivamente para Linux -->
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
+    <!-- Fuente de verdad de la versión; el tag vX.Y.Z de la release debe coincidir. -->
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <!-- El proyecto de pruebas vive en tests/ y se compila por separado. -->
