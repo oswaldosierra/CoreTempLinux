@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="GirCore.Gtk-4.0" Version="0.6.*" />
+    <PackageReference Include="GirCore.Gtk-4.0" Version="0.8.*" />
     <!-- Bandeja del sistema vía StatusNotifierItem sobre D-Bus. -->
     <PackageReference Include="Tmds.DBus" Version="0.94.*" />
   </ItemGroup>
