@@ -35,7 +35,7 @@ jobs:
         run: dotnet publish --configuration Release --no-build --output ./publish
 
       - name: Subir binarios
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coretemplinux-linux-x64
           path: ./publish
