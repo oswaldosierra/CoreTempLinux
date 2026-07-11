@@ -1,4 +1,8 @@
-# CoreTempLinux
+<p align="center">
+  <img src="assets/logo.png" alt="CoreTempLinux" width="180">
+</p>
+
+<h1 align="center">CoreTempLinux</h1>
 
 > Monitor de temperatura, frecuencia y carga de CPU para Linux — el equivalente
 > libre de la utilidad **Core Temp** de Windows.
@@ -59,6 +63,27 @@ Para una versión de publicación:
 ```bash
 dotnet publish -c Release
 ```
+
+## Instalación (integración con el escritorio)
+
+Para instalar la app con su icono en el menú de aplicaciones y en la barra de
+tareas, usa el script incluido:
+
+```bash
+./install.sh                 # instala para tu usuario en ~/.local
+sudo PREFIX=/usr ./install.sh   # o para todo el sistema
+```
+
+El script publica la app, instala los iconos en el tema `hicolor` y coloca el
+lanzador `org.coretemplinux.App.desktop`. Para desinstalar:
+
+```bash
+./uninstall.sh
+```
+
+> El icono de la barra de tareas se resuelve a partir del ID de la aplicación
+> (`org.coretemplinux.App`), que coincide con el nombre del archivo `.desktop` y
+> del icono instalado.
 
 ## Arquitectura
 

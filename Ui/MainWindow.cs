@@ -38,8 +38,14 @@ public sealed class MainWindow
         _app = app;
         LoadCss();
 
+        // El icono de la barra de tareas se resuelve por el ID de la aplicación
+        // (org.coretemplinux.App) a través del archivo .desktop y el tema de
+        // iconos "hicolor". Fijamos también el icono por defecto como respaldo.
+        Gtk.Window.SetDefaultIconName("org.coretemplinux.App");
+
         _window = Gtk.ApplicationWindow.New(app);
         _window.SetTitle("CoreTemp Linux");
+        _window.SetIconName("org.coretemplinux.App");
         _window.SetDefaultSize(480, 640);
 
         var root = Gtk.Box.New(Gtk.Orientation.Vertical, 12);

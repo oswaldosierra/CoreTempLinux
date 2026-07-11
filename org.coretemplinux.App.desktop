@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=CoreTemp Linux
+GenericName=Monitor de temperatura de CPU
+Comment=Temperatura, frecuencia y carga de CPU en tiempo real
+# La ruta de Exec la ajusta install.sh a la ubicación real del binario.
+Exec=coretemplinux
+Icon=org.coretemplinux.App
+Terminal=false
+Categories=System;Monitor;
+Keywords=cpu;temperatura;temperature;sensors;hwmon;monitor;
+StartupNotify=true
+StartupWMClass=org.coretemplinux.App
