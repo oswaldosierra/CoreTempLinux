@@ -18,19 +18,30 @@ public sealed class DBusTrayIcon : ITrayIcon
     private readonly IAppLogger _log;
     private readonly Action? _onActivate;
     private readonly StatusNotifierItem _item;
+    private readonly DBusTrayMenu? _menu;
 
     private Connection? _connection;
     private volatile bool _registered;
+    private readonly TaskCompletionSource<bool> _ready =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public Task<bool> Ready => _ready.Task;
 
     /// <param name="onActivate">
     /// Se invoca cuando el usuario activa el icono (clic). El llamante es responsable de
     /// re-entrar al hilo de GTK si lo necesita (p.ej. con <c>GLib.Functions.IdleAdd</c>).
     /// </param>
-    public DBusTrayIcon(IAppLogger log, Action? onActivate = null)
+    /// <param name="menu">Menú del clic derecho; nulo o vacío = sin menú.</param>
+    public DBusTrayIcon(IAppLogger log, Action? onActivate = null, IReadOnlyList<TrayMenuItem>? menu = null)
     {
         _log = log;
         _onActivate = onActivate;
         _item = new StatusNotifierItem(() => _onActivate?.Invoke());
+        if (menu is { Count: > 0 })
+        {
+            _menu = new DBusTrayMenu(menu);
+            _item.SetMenu(DBusTrayMenu.Path);
+        }
 
         // El registro es asíncrono y tolerante a fallos; corre fuera del hilo de GTK
         // para no acoplarse a su bucle ni bloquear el arranque.
@@ -62,6 +73,8 @@ public sealed class DBusTrayIcon : ITrayIcon
             var info = await connection.ConnectAsync().ConfigureAwait(false);
 
             await connection.RegisterObjectAsync(_item).ConfigureAwait(false);
+            if (_menu is not null)
+                await connection.RegisterObjectAsync(_menu).ConfigureAwait(false);
 
             var watcher = connection.CreateProxy<IStatusNotifierWatcher>(
                 "org.kde.StatusNotifierWatcher", "/StatusNotifierWatcher");
@@ -69,6 +82,7 @@ public sealed class DBusTrayIcon : ITrayIcon
 
             _connection = connection;
             _registered = true;
+            _ready.TrySetResult(true);
             _log.Info("Icono de bandeja registrado (StatusNotifierItem).");
         }
         catch (Exception ex)
@@ -77,6 +91,7 @@ public sealed class DBusTrayIcon : ITrayIcon
                 "No hay bandeja del sistema compatible (StatusNotifierItem). " +
                 "En GNOME requiere la extensión AppIndicator. Continúo sin icono de bandeja.",
                 ex);
+            _ready.TrySetResult(false);
         }
     }
 
@@ -153,6 +168,13 @@ internal sealed class StatusNotifierItem : IStatusNotifierItem
     private readonly StatusNotifierItemProperties _props = new();
 
     public StatusNotifierItem(Action onActivate) => _onActivate = onActivate;
+
+    /// <summary>Anuncia el objeto <c>com.canonical.dbusmenu</c> del clic derecho.</summary>
+    public void SetMenu(ObjectPath path)
+    {
+        lock (_gate)
+            _props.Menu = path;
+    }
 
     public ObjectPath ObjectPath => new("/StatusNotifierItem");
 

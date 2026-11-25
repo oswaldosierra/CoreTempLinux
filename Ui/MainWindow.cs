@@ -2,6 +2,7 @@ using System.Globalization;
 using CoreTempLinux.Alerts;
 using CoreTempLinux.Diagnostics;
 using CoreTempLinux.Sensors;
+using CoreTempLinux.Settings;
 
 namespace CoreTempLinux.Ui;
 
@@ -22,10 +23,13 @@ public sealed class MainWindow
     private readonly ITrayIcon _tray;
     private readonly AlertStateMachine _alerts;
     private readonly IAppLogger _log;
+    private readonly ISettingsStore _settingsStore;
+    private AppSettings _settings;
 
     private readonly Gtk.ApplicationWindow _window;
 
-    private readonly Gtk.SpinButton _thresholdSpin = Gtk.SpinButton.NewWithRange(40, 110, 1);
+    private readonly Gtk.SpinButton _thresholdSpin = Gtk.SpinButton.NewWithRange(
+        AppSettings.MinThreshold, AppSettings.MaxThreshold, 1);
     private readonly Gtk.Box _alertBox = Gtk.Box.New(Gtk.Orientation.Horizontal, 8);
     private readonly Gtk.Label _alertBanner = Gtk.Label.New(null);
     private readonly Gtk.Button _silenceButton = Gtk.Button.NewWithLabel("🔇 Silenciar");
@@ -44,6 +48,11 @@ public sealed class MainWindow
 
     // Mantenemos una referencia al callback para que no lo recoja el GC.
     private readonly GLib.SourceFunc _tick;
+    private GLib.SourceFunc? _minimizeOnce;
+    private GLib.SourceFunc? _trayFallback;
+
+    private readonly Gtk.Application _app;
+    private readonly Gio.SimpleAction _quitAction = Gio.SimpleAction.New("quit", null);
 
     public MainWindow(
         Gtk.Application app,
@@ -52,6 +61,7 @@ public sealed class MainWindow
         INotifier notifier,
         ITrayIcon tray,
         AlertStateMachine alerts,
+        ISettingsStore settingsStore,
         IAppLogger log)
     {
         _monitor = monitor;
@@ -60,6 +70,9 @@ public sealed class MainWindow
         _tray = tray;
         _alerts = alerts;
         _log = log;
+        _app = app;
+        _settingsStore = settingsStore;
+        _settings = settingsStore.Load();
 
         ForceDarkTheme();
         LoadCss();
@@ -86,11 +99,26 @@ public sealed class MainWindow
         root.Append(BuildCoreSection());
         root.Append(NewSeparator());
         root.Append(BuildExtraSection());
+        root.Append(NewSeparator());
+        root.Append(BuildFooter());
 
         var scroll = Gtk.ScrolledWindow.New();
         scroll.SetChild(root);
         scroll.SetVexpand(true);
         _window.SetChild(scroll);
+
+        // Cerrar (X) oculta la ventana en la bandeja si hay bandeja; si no, cierra la app.
+        // Salir de verdad: botón "Salir" o Ctrl+Q.
+        _window.OnCloseRequest += (_, _) =>
+        {
+            if (!TrayAvailable)
+                return false;
+            _window.SetVisible(false);
+            return true;
+        };
+        _quitAction.OnActivate += (_, _) => _app.Quit();
+        _app.AddAction(_quitAction);
+        _app.SetAccelsForAction("app.quit", new[] { "<Control>q" });
 
         // Primera lectura + refresco periódico (1 s).
         Refresh();
@@ -103,6 +131,60 @@ public sealed class MainWindow
     }
 
     public void Present() => _window.Present();
+
+    /// <summary>Oculta la ventana en la bandeja (la app sigue corriendo).</summary>
+    public void Hide() => _window.SetVisible(false);
+
+    private bool TrayAvailable => _tray.Ready.IsCompletedSuccessfully && _tray.Ready.Result;
+
+    /// <summary>
+    /// Clic en el icono de la bandeja: si la ventana está al frente la oculta en la
+    /// bandeja; si está oculta o detrás de otras, la trae al frente.
+    /// </summary>
+    public void ToggleFromTray()
+    {
+        if (_window.GetVisible() && _window.IsActive)
+            _window.SetVisible(false);
+        else
+            _window.Present();
+    }
+
+    /// <summary>
+    /// Arranque con <c>--minimized</c>: la ventana no se muestra y la app queda solo en la
+    /// bandeja. Si resulta que no hay bandeja (p. ej. falta la extensión AppIndicator),
+    /// se muestra minimizada para que siga siendo accesible.
+    /// </summary>
+    public void StartInTray()
+    {
+        _tray.Ready.ContinueWith(t =>
+        {
+            if (t.IsCompletedSuccessfully && t.Result)
+                return;
+            _trayFallback = () =>
+            {
+                PresentMinimized();
+                return false;
+            };
+            GLib.Functions.IdleAdd(0, _trayFallback);
+        });
+    }
+
+    /// <summary>
+    /// Muestra la ventana ya minimizada (arranque con <c>--minimized</c>). GTK4 permite
+    /// minimizar antes de mostrar; además se repite tras el primer mapeo porque algunos
+    /// compositores Wayland ignoran la petición mientras la superficie no está configurada.
+    /// </summary>
+    public void PresentMinimized()
+    {
+        _window.Minimize();
+        _window.SetVisible(true);
+        _minimizeOnce = () =>
+        {
+            _window.Minimize();
+            return false;
+        };
+        GLib.Functions.TimeoutAdd(0, 500, _minimizeOnce);
+    }
 
     // --- Construcción de secciones -------------------------------------------
 
@@ -173,6 +255,24 @@ public sealed class MainWindow
         return section;
     }
 
+    private Gtk.Widget BuildFooter()
+    {
+        var row = Gtk.Box.New(Gtk.Orientation.Horizontal, 8);
+
+        var hint = Gtk.Label.New("La X la oculta en la bandeja");
+        hint.AddCssClass("dim-label");
+        hint.SetHalign(Gtk.Align.Start);
+        hint.SetHexpand(true);
+        row.Append(hint);
+
+        var quit = Gtk.Button.NewWithLabel("Salir");
+        quit.SetTooltipText("Cerrar CoreTemp Linux (Ctrl+Q)");
+        quit.SetActionName("app.quit");
+        row.Append(quit);
+
+        return row;
+    }
+
     private Gtk.Widget BuildAlertSection()
     {
         var section = Gtk.Box.New(Gtk.Orientation.Vertical, 6);
@@ -180,7 +280,13 @@ public sealed class MainWindow
         var alertRow = Gtk.Box.New(Gtk.Orientation.Horizontal, 8);
         var alertLabel = Gtk.Label.New("Alertar a partir de (°C):");
         alertLabel.SetHalign(Gtk.Align.Start);
-        _thresholdSpin.SetValue(85);
+        _thresholdSpin.SetValue(_settings.AlertThresholdC);
+        // Se conecta después de SetValue para no reescribir el archivo al arrancar.
+        _thresholdSpin.OnValueChanged += (_, _) =>
+        {
+            _settings = _settings with { AlertThresholdC = _thresholdSpin.GetValue() };
+            _settingsStore.Save(_settings);
+        };
         alertRow.Append(alertLabel);
         alertRow.Append(_thresholdSpin);
         section.Append(alertRow);

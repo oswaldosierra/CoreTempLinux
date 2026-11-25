@@ -28,7 +28,7 @@ There is no linter config or CI. `RuntimeIdentifier` is pinned to `linux-x64` an
 
 Unit tests live in `tests/CoreTempLinux.Tests` (xUnit). They cover the GTK-free logic
 (`AlertStateMachine`, `HwmonReader`, `SensorMonitor`, `CpuLoad`, `CpuFrequency`, `CpuInfo`,
-`LinuxFileSystem`, `ConsoleAppLogger`, `TempScale`, `TrayIconRenderer`) by injecting a
+`LinuxFileSystem`, `ConsoleAppLogger`, `TempScale`, `TrayIconRenderer`, `JsonSettingsStore`) by injecting a
 `FakeFileSystem` and stub readers, so no `/sys` or `/proc` access is needed. The main `.csproj` excludes `tests/**` from its own
 compilation (`<Compile Remove>`), and the test project references it via `ProjectReference`.
 
@@ -40,12 +40,15 @@ Data flows one direction on a 1-second GLib timer: **sensor readers → `SensorM
 Dependencies are wired by constructor injection from the **composition root in
 `Program.cs`** — it is the only place that `new`s concrete types. Components depend on
 interfaces (`IFileSystem`, `IHwmonReader`, `ICpuFrequencyReader`, `ICpuLoadReader`,
-`ISensorMonitor`, `IAudioAlert`, `INotifier`, `ITrayIcon`, `IAppLogger`), so any of them
+`ISensorMonitor`, `IAudioAlert`, `INotifier`, `ITrayIcon`, `ISettingsStore`, `IAppLogger`), so any of them
 can be swapped or faked without touching the rest.
 
 - **`Diagnostics/IAppLogger`** + `ConsoleAppLogger` — the logging seam. Failures are
   logged, never swallowed silently. Min level defaults to `Info`; set `CORETEMP_LOG=debug`
   to see per-read degradations.
+- **`Settings/ISettingsStore`** + `JsonSettingsStore` — persists user preferences
+  (`AppSettings`, currently the alert threshold) to `$XDG_CONFIG_HOME/coretemplinux/settings.json`
+  with atomic writes. Never throws: unreadable/corrupt file → defaults; out-of-range values are clamped.
 - **`Sensors/IFileSystem`** + `LinuxFileSystem` — the single choke point for all `/sys`
   and `/proc` reads. It never throws: *expected* failures (missing sensor, no permission,
   device I/O error) log at Debug; *unexpected* ones log at Warning once per path (to avoid

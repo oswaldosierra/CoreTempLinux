@@ -24,6 +24,9 @@ done
 echo ">> Eliminando lanzador"
 rm -f "$APPDIR/${APPID}.desktop"
 
+echo ">> Eliminando inicio automático"
+rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/autostart/${APPID}.desktop"
+
 echo ">> Actualizando cachés…"
 gtk4-update-icon-cache -q -t -f "$ICONDIR" 2>/dev/null \
     || gtk-update-icon-cache -q -t -f "$ICONDIR" 2>/dev/null || true

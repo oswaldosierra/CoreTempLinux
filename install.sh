@@ -4,6 +4,7 @@
 #   - publica la app en ~/.local/lib/coretemplinux
 #   - instala los iconos en el tema hicolor (~/.local/share/icons)
 #   - instala el lanzador .desktop (~/.local/share/applications)
+#   - la arranca minimizada al iniciar sesión (~/.config/autostart); AUTOSTART=0 lo omite
 #
 # Uso:   ./install.sh
 # Prefijo alternativo (p. ej. para todo el sistema):
@@ -18,6 +19,8 @@ PREFIX="${PREFIX:-$HOME/.local}"
 LIBDIR="$PREFIX/lib/coretemplinux"
 ICONDIR="$PREFIX/share/icons/hicolor"
 APPDIR="$PREFIX/share/applications"
+AUTOSTART="${AUTOSTART:-1}"
+AUTOSTARTDIR="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
 
 # Self-contained (incluye el runtime .NET 10): el lanzador del menú no hereda
 # DOTNET_ROOT de ~/.bashrc, así que un binario framework-dependent no encontraría
@@ -42,6 +45,17 @@ mkdir -p "$APPDIR"
 sed "s|^Exec=.*|Exec=$LIBDIR/CoreTempLinux|" \
     "$SCRIPT_DIR/${APPID}.desktop" > "$APPDIR/${APPID}.desktop"
 chmod 644 "$APPDIR/${APPID}.desktop"
+
+if [ "$AUTOSTART" = "1" ]; then
+    echo ">> Activando inicio automático (minimizada) en $AUTOSTARTDIR"
+    mkdir -p "$AUTOSTARTDIR"
+    sed -e "s|^Exec=.*|Exec=$LIBDIR/CoreTempLinux --minimized|" \
+        -e "s|^StartupNotify=.*|StartupNotify=false|" \
+        "$SCRIPT_DIR/${APPID}.desktop" > "$AUTOSTARTDIR/${APPID}.desktop"
+    # El retraso da tiempo a que cargue la extensión de bandeja (AppIndicator) de GNOME.
+    printf "X-GNOME-Autostart-enabled=true\nX-GNOME-Autostart-Delay=5\n" >> "$AUTOSTARTDIR/${APPID}.desktop"
+    chmod 644 "$AUTOSTARTDIR/${APPID}.desktop"
+fi
 
 echo ">> Actualizando cachés…"
 gtk4-update-icon-cache -q -t -f "$ICONDIR" 2>/dev/null \
