@@ -19,8 +19,16 @@ LIBDIR="$PREFIX/lib/coretemplinux"
 ICONDIR="$PREFIX/share/icons/hicolor"
 APPDIR="$PREFIX/share/applications"
 
-echo ">> Publicando (Release)…"
-dotnet publish "$SCRIPT_DIR" -c Release -o "$LIBDIR"
+# Self-contained (incluye el runtime .NET 10): el lanzador del menú no hereda
+# DOTNET_ROOT de ~/.bashrc, así que un binario framework-dependent no encontraría
+# el runtime si .NET está instalado en ~/.dotnet y no en /usr/lib/dotnet.
+echo ">> Publicando (Release, self-contained)…"
+rm -rf "$LIBDIR"
+dotnet publish "$SCRIPT_DIR" \
+    -c Release \
+    -r linux-x64 \
+    --self-contained true \
+    -o "$LIBDIR"
 
 echo ">> Instalando iconos en $ICONDIR"
 for size in 16 32 48 64 128 256 512; do
